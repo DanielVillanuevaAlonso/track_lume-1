@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<head>    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    <style>html, body{width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-core.min.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-polar.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.6.0/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.6.0/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css"/>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/style.css') }}">
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+               #map{
+                    position: inherit;
+                    width: 140.0%;
+                    height: 90vh;
+                }
+            </style>
+</head>
+<body>
+<h1>TRACK LUME-1</h1>
+    <div class="container">
+        <div id='results'>
+                         <br><br>
+                         <fieldset><legend style="text-decoration: underline black">Position of the LUME-1 satellite:</legend>
+                                            <table>
+                                                <tr>
+                                                    <td class="field"> Latitude: </td>
+                                                    <td id="latitud">0</td>
+                                                    <td class="unit">º N</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="field"> Longitude: </td>
+                                                    <td id="longitud">0</td>
+                                                    <td class="unit">º E</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="field"> Altitude: </td>
+                                                    <td id="elevacion">0</td>
+                                                    <td class="unit"> Km</td>
+                                                </tr>
+                                            </table>
+                                            The satellite is in a <span id="light_shadow"></span></fieldset>
+                         <fieldset><legend style="text-decoration: underline black">Orbital parameters:</legend>
+                              <span id="last_pass"></span><br>
+                              <span id="numsat"></span><br>
+                              <span id="classification"></span><br>
+                              <span id="designator"></span><br>
+                              <span id="epoch_year"></span><br>
+                              <span id="epoch_day"></span><br>
+                              <span id="julian_date"></span><br>
+                              <span id="f_derivate"></span><br>
+                              <span id="s_derivate"></span><br>
+                              <span id="ballistic"></span><br>
+                              <span id="type_eph"></span><br>
+                              <span id="n_element"></span><br>
+                              <span id="incl"></span><br>
+                              <span id="ascension"></span><br>
+                              <span id="ecc"></span><br>
+                              <span id="perigeo"></span><br>
+                              <span id="anomaly"></span><br>
+                              <span id="motion"></span><br>
+                              <span id="revolution"></span><br></fieldset></div>
+        <div id='positions'><br><br><fieldset><legend style="text-decoration: underline black"><span id="time_to_np"></span>:</legend>
+                          AOS: on <span id="next_pass_ini"></span>º<br>
+                          TCA: on <span id="next_pass_mid"></span>º<br>
+                          LOS: on <span id="next_pass_end"></span>º<br>
+                          <span id="duration_pass"></span></fieldset>
+                          <fieldset><legend style="text-decoration: underline black">Radar view from UVIGO GS:</legend>
+                              <table>
+                                   <tr>
+                                       <td class="field_2"> Az:</td>
+                                       <td id="azimuth">0</td>
+                                       <td class="unit_2">º </td>
+                                   </tr>
+                                   <tr>
+                                       <td class="field_2"> El:</td>
+                                       <td id="altitud">0</td>
+                                       <td class="unit_2">º </td>
+                                   </tr>
+                                   <tr>
+                                       <td class="field_2"> Distance:</td>
+                                       <td id="dist">0</td>
+                                       <td class="unit_2"> Km </td>
+                                   </tr>
+                              </table>
+                              <br>
+                            <div id="myChart" style="width: 600px; height: 550px;"></div>
+                          </fieldset> </div>
+            <br>
+            <div class="folium-map" id="map"></div>
+    </div>
+       <script>
+            var chart = anychart.polar();
+            chart.xScale().softMinimum(0).softMaximum(360);
+            chart.yScale().softMinimum(0).softMaximum(90).inverted(true);
+            chart.container("myChart");
+            chart.draw();
+            var map = L.map(
+                "map",
+                {
+                    center: [0.0, 0.0],
+                    crs: L.CRS.EPSG3857,
+                    zoom: 2,
+                    zoomControl: true,
+                    preferCanvas: false,
+                }
+            );
+            var marker_dynamic = null;
+            var orbit1 = null;
+            var orbit2 = null;
+            var alcance = null;
+            var data_1 = null;
+            var series1 = null;
+            var tile_layer = L.tileLayer(
+                "https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg",
+                    ).addTo(map);
+            var marker_teleco = L.marker(
+                [42.169952849844274, -8.68756907481494],
+                {}
+            );
+            var TelecoIcon = L.icon({
+                            iconUrl: 'https://cdn-icons-png.flaticon.com/512/28/28322.png',
+                            iconSize: [38, 38],
+              });
+            marker_teleco.setIcon(TelecoIcon);
+            marker_teleco.bindTooltip(
+                `<div>
+                     UVIGO GS
+                 </div>`,
+                {"sticky": true}
+            ).addTo(map);
+            $(document).ready(function() {
+              setInterval(function() {
+                $.ajax({
+                  url: 'ajax',
+                  success: function(data) {
+                    $('#latitud').text(data.latitud);
+                    $('#longitud').text(data.longitud);
+                    $('#elevacion').text(data.elevacion);
+                    $('#azimuth').text(data.azimuth);
+                    $('#altitud').text(data.altitud);
+                    $('#dist').text(data.dist);
+                    $('#light_shadow').text(data.light_shadow);
+                    $('#next_pass_ini').text(data.next_pass_ini);
+                    $('#next_pass_ini').text(data.next_pass_ini);
+                    $('#next_pass_mid').text(data.next_pass_mid);
+                    $('#next_pass_end').text(data.next_pass_end);
+                    $('#time_to_np').text(data.time_to_np);
+                    $('#duration_pass').text(data.duration_pass);
+                    $('#latlngs1').text(data.latlngs1);
+                    $('#latlngs2').text(data.latlngs2);
+                    $('#range_sat').text(data.range_sat);
+                    $('#prueba').text(data.prueba);
+                    $('#last_pass').text(data.last_pass);
+                    $('#numsat').text(data.numsat);
+                    $('#classification').text(data.classification);
+                    $('#designator').text(data.designator);
+                    $('#epoch_year').text(data.epoch_year);
+                    $('#epoch_day').text(data.epoch_day);
+                    $('#julian_date').text(data.julian_date);
+                    $('#f_derivate').text(data.f_derivate);
+                    $('#s_derivate').text(data.s_derivate);
+                    $('#ballistic').text(data.ballistic);
+                    $('#type_eph').text(data.type_eph);
+                    $('#n_element').text(data.n_element);
+                    $('#incl').text(data.incl);
+                    $('#ascension').text(data.ascension);
+                    $('#ecc').text(data.ecc);
+                    $('#perigeo').text(data.perigeo);
+                    $('#anomaly').text(data.anomaly);
+                    $('#motion').text(data.motion);
+                    $('#revolution').text(data.revolution);
+                    if(data_1 != null) {
+                      if(series1 != null){
+                        chart.removeAllSeries();
+                        }
+                     }
+                   data_1 = [
+                        {x:data.azimuth , value:data.altitud}
+                        ];
+                   if(data.altitud>=0) {
+                    series1 = chart.marker(data_1).name('AZ vs EL');
+
+                   }
+                   if(orbit1 != null) {
+                        map.removeLayer(orbit1);
+                   }
+                   if(orbit1 != null) {
+                        map.removeLayer(orbit1);
+                   }
+                   orbit1 = L.polyline(data.latlngs1, {color: 'red'}, noClip=true).addTo(map);
+                   if(orbit2 != null) {
+                        map.removeLayer(orbit2);
+                   }
+                   orbit2 = L.polyline(data.latlngs2, {color: 'red'}, noClip=true).addTo(map);
+                   if(alcance != null) {
+                        map.removeLayer(alcance);
+                   }
+                   alcance = L.circle([data.latitud, data.longitud],{radius:data.range_sat}).addTo(map);
+                   if(marker_dynamic != null) {
+                        map.removeLayer(marker_dynamic);
+                   }
+                   marker_dynamic = L.marker(
+                            [data.latitud, data.longitud],
+                            {}
+                   )
+                   var greenIcon = L.icon({
+                            iconUrl: 'https://cdn-icons-png.flaticon.com/512/21/21998.png',
+                            iconSize: [38, 38],
+                           });
+
+                   marker_dynamic.setIcon(greenIcon);
+                   marker_dynamic.bindTooltip(
+                            `<div>
+                                 LUME-1
+                             </div>`,
+                            {"sticky": true}
+                     ).addTo(map);
+                  }
+                });
+              }, 3000);
+            });
+    </script>
+</body>
